@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Excel Tools</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f4f6f9; color: #1a1a2e; padding: 24px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+  .mode-tabs { display: flex; margin-bottom: 28px; border-radius: 10px; overflow: hidden; border: 1px solid #c5cae9; width: fit-content; flex-wrap: wrap; }
+  .mode-tab { padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; background: #fff; color: #666; border: none; transition: background .2s, color .2s; }
+  .mode-tab.active { background: #5c6bc0; color: #fff; }
+  .mode-tab:not(.active):hover { background: #e8eaf6; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .upload-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .upload-box { flex: 1; min-width: 200px; border: 2px dashed #c5cae9; border-radius: 10px; padding: 24px 16px; text-align: center; cursor: pointer; background: #fff; transition: border-color .2s; }
+  .upload-box:hover { border-color: #5c6bc0; }
+  .upload-box.loaded { border-color: #43a047; border-style: solid; }
+  .upload-box input { display: none; }
+  .upload-box .label { font-size: 13px; color: #666; margin-top: 8px; }
+  .upload-box .fname { font-size: 13px; font-weight: 600; color: #43a047; margin-top: 6px; word-break: break-all; }
+  .icon { font-size: 28px; }
+  button.primary { padding: 10px 24px; background: #5c6bc0; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button.primary:disabled { background: #bbb; cursor: default; }
+  button.primary:not(:disabled):hover { background: #3949ab; }
+  #btnCompare { display: block; width: 100%; padding: 12px; background: #5c6bc0; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 24px; }
+  #btnCompare:disabled { background: #bbb; cursor: default; }
+  #btnCompare:not(:disabled):hover { background: #3949ab; }
+  .sheet-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .stab { padding: 5px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; border: 1px solid #c5cae9; background: #fff; }
+  .stab.active { background: #5c6bc0; color: #fff; border-color: #5c6bc0; }
+  .stats { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stat-card { flex: 1; min-width: 140px; background: #fff; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #ef5350; }
+  .stat-card .num { font-size: 24px; font-weight: 700; }
+  .stat-card .desc { font-size: 12px; color: #777; margin-top: 2px; }
+  .table-wrap { overflow-x: auto; background: #fff; border-radius: 10px; padding: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #e8eaf6; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #ffebee; color: #c62828; }
+  .formula-text { font-family: monospace; font-size: 12px; color: #555; word-break: break-all; }
+  .norm-text { font-family: monospace; font-size: 12px; color: #888; word-break: break-all; }
+  .empty { text-align: center; color: #aaa; padding: 40px; }
+  .pagination { display: flex; align-items: center; gap: 8px; margin-top: 12px; justify-content: flex-end; font-size: 13px; }
+  .pagination button { padding: 4px 12px; border: 1px solid #c5cae9; border-radius: 6px; background: #fff; cursor: pointer; }
+  .pagination button:disabled { opacity: .4; cursor: default; }
+  .pagination button:not(:disabled):hover { background: #e8eaf6; }
+  #progressBar { display: none; width: 100%; height: 4px; background: #e0e0e0; border-radius: 2px; margin-bottom: 16px; }
+  #progressFill { height: 100%; background: #5c6bc0; border-radius: 2px; transition: width .2s; width: 0%; }
+  .irow { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; }
+  label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
+  input[type=number] { width: 90px; padding: 8px 10px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 14px; }
+  .sheet-select { padding: 8px 10px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 14px; background: #fff; }
+  .formula-input { width: 100%; padding: 10px 12px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 13px; font-family: monospace; margin-bottom: 16px; }
+  .formula-input:focus { outline: none; border-color: #5c6bc0; }
+  .result-box { background: #fff; border-radius: 10px; padding: 16px 20px; margin-top: 20px; }
+  .result-box h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #555; }
+  .result-row { margin-bottom: 12px; }
+  .result-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; margin-bottom: 4px; }
+  .result-value { font-family: monospace; font-size: 13px; background: #f4f6f9; padding: 10px 14px; border-radius: 8px; word-break: break-all; }
+  .result-value.cols { color: #1a237e; }
+  .result-value.norm { color: #888; }
+  .hint { font-size: 12px; color: #aaa; margin-top: 6px; }
+  .error-msg { color: #c62828; font-size: 13px; margin-bottom: 8px; display: none; }
+  .warn-msg { display: none; font-size: 13px; margin-bottom: 12px; background: #fff3e0; color: #e65100; padding: 10px 14px; border-radius: 8px; }
+  textarea.php-input { width: 100%; height: 200px; padding: 10px 12px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 12px; font-family: monospace; resize: vertical; margin-bottom: 12px; }
+  textarea.php-input:focus { outline: none; border-color: #5c6bc0; }
+  .section-divider { border: none; border-top: 2px dashed #c5cae9; margin: 32px 0; }
+  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: #3949ab; }
+  .diff-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .diff-table th { background: #e8eaf6; padding: 8px 12px; text-align: left; font-weight: 600; }
+  .diff-table td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; font-family: monospace; }
+  .diff-table tr.new-col td { font-weight: 700; background: #e8f5e9; }
+  .diff-table tr.removed-col td { color: #aaa; text-decoration: line-through; background: #ffebee; }
+  .diff-table tr.changed-col td { background: #fff8e1; }
+  .mapping-output { background: #f4f6f9; border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 12px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; }
+  .mapping-output .new-entry { font-weight: 700; color: #2e7d32; }
+  .copy-btn { padding: 6px 16px; background: #e8eaf6; border: 1px solid #c5cae9; border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+  .copy-btn:hover { background: #c5cae9; }
+  .bug-dropzone { border: 2px dashed #c5cae9; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; background: #fff; min-height: 110px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; transition: border-color .2s; }
+  .bug-dropzone:hover { border-color: #5c6bc0; }
+  .bug-result-name { font-size: 22px; font-weight: 700; color: #3949ab; }
+  .bug-result-role { font-size: 13px; color: #777; margin-top: 2px; }
+  .bug-result-reason { margin-top: 10px; font-size: 14px; color: #444; background: #f4f6f9; padding: 12px 16px; border-radius: 8px; }
+  .btn-clear { padding: 10px 24px; background: #e0e0e0; color: #555; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-left: 10px; }
+  .btn-clear:hover { background: #bdbdbd; }
+  .priority-badge { font-size: 12px; font-weight: 400; color: #fff; background: #5c6bc0; border-radius: 10px; padding: 2px 8px; margin-left: 8px; }
+  .reply-box { margin-bottom: 16px; background: #e8f5e9; border-left: 4px solid #43a047; border-radius: 8px; padding: 14px 16px; }
+  .reply-box-title { font-size: 11px; font-weight: 700; color: #2e7d32; text-transform: uppercase; margin-bottom: 6px; }
+  .reply-box-text { font-size: 14px; color: #1b5e20; }
+  .person-card { background: #fff; border-radius: 8px; padding: 14px 16px; border: 1px solid #e8eaf6; }
+  .person-row { display: flex; align-items: center; gap: 12px; }
+  .person-row + .person-row { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; }
+</style>
+</head>
+<body>
+<h1>📊 Excel Tools</h1>
+
+<div class="mode-tabs">
+  <button class="mode-tab active" onclick="switchMode('compare',this)">Сравнение файлов</button>
+  <button class="mode-tab" onclick="switchMode('converter',this)">Конвертер формул</button>
+  <button class="mode-tab" onclick="switchMode('php',this)">PHP маппинг</button>
+  <button class="mode-tab" onclick="switchMode('bug',this)">Распределение бага</button>
+</div>
+
+<!-- PAGE 1 -->
+<div class="page active" id="page-compare">
+  <div class="upload-row">
+    <div class="upload-box" id="box1" onclick="document.getElementById('f1').click()">
+      <div class="icon">📁</div><input type="file" id="f1" accept=".xlsx,.xls" onchange="cmp_loadFile(1,this)">
+      <div class="label">Файл 1 (оригинал)</div><div class="fname" id="cmp_fname1">не выбран</div>
+    </div>
+    <div class="upload-box" id="box2" onclick="document.getElementById('f2').click()">
+      <div class="icon">📁</div><input type="file" id="f2" accept=".xlsx,.xls" onchange="cmp_loadFile(2,this)">
+      <div class="label">Файл 2 (для сравнения)</div><div class="fname" id="cmp_fname2">не выбран</div>
+    </div>
+  </div>
+  <div id="progressBar"><div id="progressFill"></div></div>
+  <button id="btnCompare" disabled onclick="cmp_startCompare()">Сравнить</button>
+  <div id="cmp_results" style="display:none;">
+    <div class="sheet-tabs" id="cmp_sheetTabs"></div>
+    <div class="stats" id="cmp_stats"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Ячейка (пример)</th><th>Статус</th><th>Формула (оригинал)</th><th>С названиями столбцов</th><th>Структура</th></tr></thead>
+        <tbody id="cmp_tbody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="cmp_pageInfo"></span>
+      <button id="cmp_btnPrev" onclick="cmp_changePage(-1)">← Назад</button>
+      <button id="cmp_btnNext" onclick="cmp_changePage(1)">Вперёд →</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2 -->
+<div class="page" id="page-converter">
+  <div class="upload-box" id="cv_uploadBox" onclick="document.getElementById('cv_f1').click()">
+    <div class="icon">📁</div><input type="file" id="cv_f1" accept=".xlsx,.xls" onchange="cv_loadFile(this)">
+    <div class="label">Загрузить Excel-файл</div><div class="fname" id="cv_fname">не выбран</div>
+  </div>
+  <div class="irow">
+    <div><label for="cv_sheetSel">Лист</label><select class="sheet-select" id="cv_sheetSel" disabled onchange="cv_onSheetChange()"></select></div>
+    <div><label for="cv_headerRow">Строка с заголовками</label><input type="number" id="cv_headerRow" value="14" min="1"></div>
+    <button class="primary" id="cv_loadBtn" disabled onclick="cv_loadHeaders()">Загрузить заголовки</button>
+  </div>
+  <div id="cv_headerPreview" style="display:none;margin-bottom:16px;">
+    <div class="result-label">Найдено столбцов: <span id="cv_colCount">0</span></div>
+    <div class="hint" id="cv_colPreview"></div>
+  </div>
+  <div id="cv_formulaSection" style="display:none;">
+    <label for="cv_formulaInput">Введите формулу</label>
+    <input type="text" id="cv_formulaInput" class="formula-input" placeholder="=IF(AC14=&quot;Вкл&quot;,AA14*1.22)" oninput="cv_onFormulaInput()">
+    <div class="error-msg" id="cv_formulaError">Введите формулу начиная с =</div>
+    <button class="primary" id="cv_convertBtn" disabled onclick="cv_convert()">Преобразовать</button>
+  </div>
+  <div class="result-box" id="cv_resultBox" style="display:none;">
+    <h2>Результат</h2>
+    <div class="result-row"><div class="result-label">Оригинал</div><div class="result-value" id="cv_resOriginal"></div></div>
+    <div class="result-row"><div class="result-label">С названиями столбцов</div><div class="result-value cols" id="cv_resCols"></div></div>
+    <div class="result-row"><div class="result-label">Структура</div><div class="result-value norm" id="cv_resNorm"></div></div>
+  </div>
+</div>
+
+<!-- PAGE 3 -->
+<div class="page" id="page-php">
+  <div class="section-title">🔁 Конвертер формулы по маппингу</div>
+  <label for="php_input">Вставьте PHP-массив маппинга</label>
+  <textarea class="php-input" id="php_input" placeholder="'year_month' => 'A',&#10;'region' => 'B',&#10;..."></textarea>
+  <div class="irow" style="margin-bottom:20px;">
+    <button class="primary" onclick="php_parse()">Распознать маппинг</button>
+    <span id="php_parseInfo" style="font-size:13px;color:#777;"></span>
+  </div>
+  <div id="php_formulaSection" style="display:none;">
+    <label for="php_formulaInput">Введите формулу</label>
+    <input type="text" id="php_formulaInput" class="formula-input" placeholder="=IF(AC14=&quot;Вкл&quot;,AA14*1.22)" oninput="php_onFormulaInput()">
+    <div class="error-msg" id="php_formulaError">Введите формулу начиная с =</div>
+    <button class="primary" id="php_convertBtn" disabled onclick="php_convert()">Преобразовать</button>
+  </div>
+  <div class="result-box" id="php_resultBox" style="display:none;">
+    <h2>Результат</h2>
+    <div class="warn-msg" id="php_warnUnknown"></div>
+    <div class="warn-msg" id="php_warnOpenRange"></div>
+    <div class="result-row"><div class="result-label">Оригинал</div><div class="result-value" id="php_resOriginal"></div></div>
+    <div class="result-row"><div class="result-label">С плейсхолдерами</div><div class="result-value cols" id="php_resCols"></div></div>
+    <div class="result-row"><div class="result-label">Структура</div><div class="result-value norm" id="php_resNorm"></div></div>
+  </div>
+  <hr class="section-divider">
+  <div class="section-title">📐 Генератор маппинга для изменённого файла</div>
+  <div class="warn-msg" style="display:block;background:#ffebee;color:#c62828;font-size:20px;">⚠️ Нельзя на основании нового маппинга делать формулы без @ArKaNeMaN</div>
+  <div style="margin-bottom:16px;"></div>
+  <div class="upload-row">
+    <div class="upload-box" id="mg_box1" onclick="document.getElementById('mg_f1').click()">
+      <div class="icon">📁</div><input type="file" id="mg_f1" accept=".xlsx,.xls" onchange="mg_loadFile(1,this)">
+      <div class="label">Файл 1 (исходный)</div><div class="fname" id="mg_fname1">не выбран</div>
+    </div>
+    <div class="upload-box" id="mg_box2" onclick="document.getElementById('mg_f2').click()">
+      <div class="icon">📁</div><input type="file" id="mg_f2" accept=".xlsx,.xls" onchange="mg_loadFile(2,this)">
+      <div class="label">Файл 2 (изменённый)</div><div class="fname" id="mg_fname2">не выбран</div>
+    </div>
+  </div>
+  <div class="irow">
+    <div><label for="mg_row1">Строка заголовков файл 1</label><input type="number" id="mg_row1" value="14" min="1"></div>
+    <div><label for="mg_row2">Строка заголовков файл 2</label><input type="number" id="mg_row2" value="14" min="1"></div>
+    <div><label for="mg_sheetSel1">Лист</label><select class="sheet-select" id="mg_sheetSel1" disabled></select></div>
+    <button class="primary" id="mg_compareBtn" disabled onclick="mg_compare()">Сравнить заголовки</button>
+  </div>
+  <div id="mg_diffSection" style="display:none;">
+    <div class="result-box" style="margin-top:0;margin-bottom:20px;">
+      <h2>Различия в заголовках</h2>
+      <div class="table-wrap">
+        <table class="diff-table">
+          <thead><tr><th>Буква (файл 1)</th><th>Название (файл 1)</th><th>Буква (файл 2)</th><th>Название (файл 2)</th><th>Статус</th></tr></thead>
+          <tbody id="mg_diffTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <label for="mg_mappingInput">Вставьте маппинг файла 1</label>
+    <textarea class="php-input" id="mg_mappingInput" placeholder="'year_month' => 'A',&#10;'region' => 'B',&#10;..."></textarea>
+    <button class="primary" onclick="mg_generate()">Сгенерировать маппинг файла 2</button>
+    <div id="mg_outputSection" style="display:none;margin-top:20px;">
+      <div class="result-box">
+        <h2>Маппинг для файла 2</h2>
+        <div class="hint" style="margin-bottom:10px;">🟢 Жирным выделены новые колонки</div>
+        <div class="mapping-output" id="mg_output"></div>
+        <button class="copy-btn" onclick="mg_copy()">📋 Скопировать (без HTML)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4 -->
+<div class="page" id="page-bug">
+  <div class="section-title">🐛 Распределение бага</div>
+  <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:240px;">
+      <label>Скриншот — необязательно (Ctrl+V или перетащи)</label>
+      <div class="bug-dropzone" id="bug_dropzone" style="margin-top:4px;"
+           onclick="document.getElementById('bug_img').click()"
+           ondragover="event.preventDefault();this.style.borderColor='#5c6bc0'"
+           ondragleave="this.style.borderColor='#c5cae9'"
+           ondrop="bug_onDrop(event)">
+        <input type="file" id="bug_img" accept="image/*" onchange="bug_onFileSelect(this)">
+        <div id="bug_imgPreview" style="display:none;width:100%;">
+          <img id="bug_imgEl" style="max-width:100%;max-height:200px;border-radius:8px;" src="">
+          <div style="font-size:12px;color:#43a047;margin-top:6px;">✅ Изображение загружено</div>
+        </div>
+        <div id="bug_imgPlaceholder">
+          <div style="font-size:28px;">🖼️</div>
+          <div style="font-size:13px;color:#666;">Нажмите, перетащите или Ctrl+V</div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:2;min-width:240px;">
+      <label for="bug_desc">Описание проблемы</label>
+      <textarea id="bug_desc" class="php-input" style="height:130px;margin-top:4px;" placeholder="Опишите что происходит, где не работает, что за ошибка..."></textarea>
+    </div>
+  </div>
+  <button class="primary" id="bug_btn" onclick="bug_analyze()">🔍 Определить ответственного</button>
+  <button class="btn-clear" onclick="bug_clear()">🗑 Очистить</button>
+  <div class="warn-msg" id="bug_warnUrl" style="margin-top:12px;"></div>
+  <div id="bug_result" style="display:none;margin-top:20px;">
+    <div class="result-box">
+      <h2>Результат</h2>
+      <div id="bug_loading" style="display:none;color:#777;font-size:14px;padding:10px 0;">⏳ Анализирую...</div>
+      <div id="bug_answer"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Переключение страниц ──────────────────────────────────────────────
+function switchMode(mode, el) {
+  document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('page-'+mode).classList.add('active');
+}
+
+// ── Утилиты ───────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function colToNum(col) {
+  col=col.toUpperCase(); var n=0;
+  for(var i=0;i<col.length;i++) n=n*26+col.charCodeAt(i)-64;
+  return n;
+}
+function sortCols(cols) {
+  return cols.slice().sort(function(a,b){return colToNum(a)-colToNum(b);});
+}
+function readHeaderMap(ws, row) {
+  var map={}, re=new RegExp('^([A-Z]+)'+row+'$');
+  for(var addr in ws){
+    if(addr[0]==='!') continue;
+    var m=addr.match(re);
+    if(m){var v=ws[addr].v!==undefined?String(ws[addr].v).trim():'';if(v)map[m[1].toUpperCase()]=v;}
+  }
+  return map;
+}
+function squareBracket(k){return '['+k+']';}
+function getFormulaCells(wb,sn){
+  var ws=wb.Sheets[sn]; if(!ws) return {};
+  var out={};
+  for(var addr in ws){if(addr[0]==='!') continue;if(ws[addr].f)out[addr]='='+ws[addr].f;}
+  return out;
+}
+function getNormalizedSet(wb,sn){
+  var cells=getFormulaCells(wb,sn),set=new Set();
+  for(var a in cells) set.add(normalizeFormula(cells[a]));
+  return set;
+}
+function normalizeFormula(f){
+  return f.replace(/"[^"]*"/g,'"..."').replace(/\$?[A-Z]{1,3}\$?[0-9]{1,7}:\$?[A-Z]{1,3}\$?[0-9]{1,7}/gi,'#:#').replace(/\$?[A-Z]{1,3}\$?[0-9]{1,7}/gi,'#');
+}
+function transformCell(dc,col,dr1,row,dr2,map,wP,wB){
+  if(dc) return dc+col+dr1+row+dr2;
+  if(dr1&&dr2) return col+dr1+row+dr2;
+  var key=map[col.toUpperCase()];
+  if(dr1&&!dr2) return col+'${_row_}';
+  if(!dr1&&dr2) return (key?wB(key):col)+row+'$';
+  return key?wP(key):col;
+}
+function applyMap(f,map,wP,wB,onOpen){
+  var refs=[];
+  var s=f.replace(/(?:'[^']+'|[A-Za-z\u0400-\u04FF0-9_]+)!\$?[A-Z]{1,3}\$?[0-9]{1,7}(?::\$?[A-Z]{1,3}\$?[0-9]{1,7})?/g,function(m){refs.push(m);return '\x01'+(refs.length-1)+'\x01';});
+  s=s.replace(/(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})(\$?):(\$?)([A-Z]{1,3})(?![0-9$])/gi,function(_,dc1,c1,dr1a,r1,dr1b,dc2,c2){
+    if(!dc1&&!dr1a&&!dr1b&&!dc2&&onOpen) onOpen(c1,r1,c2);
+    return transformCell(dc1,c1,dr1a,r1,dr1b,map,wP,wB)+':'+((!dc2&&map[c2.toUpperCase()])?wB(map[c2.toUpperCase()]):(dc2+c2));
+  });
+  s=s.replace(/(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})(\$?):(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})(\$?)/gi,function(_,dc1,c1,dr1a,r1,dr1b,dc2,c2,dr2a,r2,dr2b){
+    return transformCell(dc1,c1,dr1a,r1,dr1b,map,wP,wB)+':'+transformCell(dc2,c2,dr2a,r2,dr2b,map,wP,wB);
+  });
+  s=s.replace(/(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})(\$?)/gi,function(_,dc,col,dr1,row,dr2){return transformCell(dc,col,dr1,row,dr2,map,wP,wB);});
+  return s.replace(/\x01(\d+)\x01/g,function(_,i){return refs[parseInt(i)];});
+}
+
+// ── PAGE 1 ────────────────────────────────────────────────────────────
+var cmp_wb1=null,cmp_wb2=null,cmp_sheetNames=[],cmp_sheetCache={},cmp_currentSheet='',cmp_currentPage=0,CMP_PAGE=100;
+function cmp_loadFile(n,input){
+  var f=input.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(e){
+    var wb=XLSX.read(e.target.result,{type:'binary',cellFormula:true,cellNF:false,cellStyles:false,cellDates:false});
+    if(n===1){cmp_wb1=wb;document.getElementById('cmp_fname1').textContent=f.name;document.getElementById('box1').classList.add('loaded');}
+    else{cmp_wb2=wb;document.getElementById('cmp_fname2').textContent=f.name;document.getElementById('box2').classList.add('loaded');}
+    document.getElementById('btnCompare').disabled=!(cmp_wb1&&cmp_wb2);
+  };
+  r.readAsBinaryString(f);
+}
+function cmp_computeSheet(name){
+  if(cmp_sheetCache[name]) return cmp_sheetCache[name];
+  var c1=cmp_wb1.SheetNames.indexOf(name)>=0?getFormulaCells(cmp_wb1,name):{};
+  var ns2=cmp_wb2.SheetNames.indexOf(name)>=0?getNormalizedSet(cmp_wb2,name):new Set();
+  var hmap=cmp_wb1.SheetNames.indexOf(name)>=0?readHeaderMap(cmp_wb1.Sheets[name],14):{};
+  var seen=new Set(),rows=[],addrs=Object.keys(c1).sort();
+  for(var i=0;i<addrs.length;i++){
+    var addr=addrs[i],f1=c1[addr],norm=normalizeFormula(f1);
+    if(ns2.has(norm)||seen.has(norm)) continue;
+    seen.add(norm);
+    rows.push({addr:addr,f1:f1,cols:applyMap(f1,hmap,squareBracket,squareBracket,null),norm:norm});
+  }
+  cmp_sheetCache[name]=rows; return rows;
+}
+function cmp_startCompare(){
+  cmp_sheetCache={};
+  var bar=document.getElementById('progressBar'),fill=document.getElementById('progressFill');
+  bar.style.display='block'; fill.style.width='30%';
+  setTimeout(function(){
+    var seen={}; cmp_sheetNames=[];
+    cmp_wb1.SheetNames.concat(cmp_wb2.SheetNames).forEach(function(n){if(!seen[n]){seen[n]=true;cmp_sheetNames.push(n);}});
+    var el=document.getElementById('cmp_sheetTabs'); el.innerHTML='';
+    cmp_sheetNames.forEach(function(name,i){
+      var t=document.createElement('div'); t.className='stab'+(i===0?' active':'');
+      t.textContent=name; t.dataset.name=name;
+      t.onclick=(function(n,e){return function(){cmp_switchSheet(n,e);};})(name,t);
+      el.appendChild(t);
+    });
+    fill.style.width='100%';
+    setTimeout(function(){bar.style.display='none';fill.style.width='0%';},400);
+    document.getElementById('cmp_results').style.display='block';
+    cmp_switchSheet(cmp_sheetNames[0]);
+  },16);
+}
+function cmp_switchSheet(name,tabEl){
+  cmp_currentSheet=name; cmp_currentPage=0;
+  document.querySelectorAll('#cmp_sheetTabs .stab').forEach(function(t){t.classList.remove('active');});
+  var el=tabEl||document.querySelector('#cmp_sheetTabs .stab[data-name="'+name+'"]');
+  if(el) el.classList.add('active');
+  cmp_renderPage();
+}
+function cmp_changePage(dir){
+  var rows=cmp_computeSheet(cmp_currentSheet);
+  cmp_currentPage=Math.max(0,Math.min(cmp_currentPage+dir,Math.ceil(rows.length/CMP_PAGE)-1));
+  cmp_renderPage();
+}
+function cmp_renderPage(){
+  var rows=cmp_computeSheet(cmp_currentSheet);
+  var start=cmp_currentPage*CMP_PAGE,slice=rows.slice(start,start+CMP_PAGE);
+  document.getElementById('cmp_stats').innerHTML='<div class="stat-card"><div class="num">'+rows.length+'</div><div class="desc">Уникальных формул только в файле 1</div></div>';
+  var tbody=document.getElementById('cmp_tbody'); tbody.innerHTML='';
+  if(!slice.length){tbody.innerHTML='<tr><td colspan="5" class="empty">Нет уникальных формул</td></tr>';}
+  else{
+    var frag=document.createDocumentFragment();
+    for(var i=0;i<slice.length;i++){
+      var r=slice[i],tr=document.createElement('tr');
+      tr.innerHTML='<td><strong>'+escHtml(r.addr)+'</strong></td><td><span class="badge">Только в файле 1</span></td>'+
+        '<td><span class="formula-text">'+escHtml(r.f1)+'</span></td>'+
+        '<td><span class="formula-text">'+escHtml(r.cols)+'</span></td>'+
+        '<td><span class="norm-text">'+escHtml(r.norm)+'</span></td>';
+      frag.appendChild(tr);
+    }
+    tbody.appendChild(frag);
+  }
+  var total=Math.ceil(rows.length/CMP_PAGE)||1;
+  document.getElementById('cmp_pageInfo').textContent=rows.length?'Строки '+(start+1)+'–'+Math.min(start+CMP_PAGE,rows.length)+' из '+rows.length:'';
+  document.getElementById('cmp_btnPrev').disabled=cmp_currentPage===0;
+  document.getElementById('cmp_btnNext').disabled=cmp_currentPage>=total-1;
+}
+
+// ── PAGE 2 ────────────────────────────────────────────────────────────
+var cv_wb=null,cv_headerMap={};
+function cv_loadFile(input){
+  var f=input.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(e){
+    cv_wb=XLSX.read(e.target.result,{type:'binary',cellFormula:true,cellNF:false,cellStyles:false,cellDates:false});
+    document.getElementById('cv_fname').textContent=f.name;
+    document.getElementById('cv_uploadBox').classList.add('loaded');
+    var sel=document.getElementById('cv_sheetSel'); sel.innerHTML='';
+    cv_wb.SheetNames.forEach(function(n){var o=document.createElement('option');o.value=o.textContent=n;sel.appendChild(o);});
+    sel.disabled=false; document.getElementById('cv_loadBtn').disabled=false;
+  };
+  r.readAsBinaryString(f);
+}
+function cv_onSheetChange(){cv_headerMap={};['cv_headerPreview','cv_formulaSection','cv_resultBox'].forEach(function(id){document.getElementById(id).style.display='none';});}
+function cv_loadHeaders(){
+  if(!cv_wb) return;
+  var sn=document.getElementById('cv_sheetSel').value,row=parseInt(document.getElementById('cv_headerRow').value,10);
+  cv_headerMap=readHeaderMap(cv_wb.Sheets[sn],row);
+  var cols=Object.keys(cv_headerMap);
+  document.getElementById('cv_colCount').textContent=cols.length;
+  document.getElementById('cv_colPreview').textContent=cols.slice(0,8).map(function(c){return c+'→'+cv_headerMap[c];}).join(', ')+(cols.length>8?' ...':'');
+  document.getElementById('cv_headerPreview').style.display='block';
+  document.getElementById('cv_formulaSection').style.display='block';
+  document.getElementById('cv_resultBox').style.display='none';
+}
+function cv_onFormulaInput(){
+  var val=document.getElementById('cv_formulaInput').value.trim();
+  var err=document.getElementById('cv_formulaError'),btn=document.getElementById('cv_convertBtn');
+  if(val&&!val.startsWith('=')){err.style.display='block';btn.disabled=true;}
+  else{err.style.display='none';btn.disabled=!val;}
+}
+function cv_convert(){
+  var f=document.getElementById('cv_formulaInput').value.trim(); if(!f) return;
+  document.getElementById('cv_resOriginal').textContent=f;
+  document.getElementById('cv_resCols').textContent=applyMap(f,cv_headerMap,squareBracket,squareBracket,null);
+  document.getElementById('cv_resNorm').textContent=normalizeFormula(f);
+  document.getElementById('cv_resultBox').style.display='block';
+}
+
+// ── PAGE 3A ───────────────────────────────────────────────────────────
+var php_map={};
+function php_parse(){
+  var text=document.getElementById('php_input').value; php_map={};
+  var re=/^\s*'([^']+)'\s*=>\s*'([A-Z]{1,3})'/gm,m;
+  while((m=re.exec(text))!==null) php_map[m[2].toUpperCase()]=m[1];
+  var count=Object.keys(php_map).length;
+  document.getElementById('php_parseInfo').textContent=count?'✅ Найдено '+count+' колонок':'⚠️ Колонки не найдены';
+  if(count){document.getElementById('php_formulaSection').style.display='block';document.getElementById('php_resultBox').style.display='none';}
+}
+function php_onFormulaInput(){
+  var val=document.getElementById('php_formulaInput').value.trim();
+  var err=document.getElementById('php_formulaError'),btn=document.getElementById('php_convertBtn');
+  if(val&&!val.startsWith('=')){err.style.display='block';btn.disabled=true;}
+  else{err.style.display='none';btn.disabled=!val;}
+}
+function php_convert(){
+  var f=document.getElementById('php_formulaInput').value.trim(); if(!f) return;
+  var stripped=f.replace(/(?:'[^']+'|[A-Za-z\u0400-\u04FF0-9_]+)!\$?[A-Z]{1,3}\$?[0-9]{1,7}(?::\$?[A-Z]{1,3}\$?[0-9]{1,7})?/g,'');
+  var unknown=new Set(),re=/(?:\$?)([A-Z]{1,3})\$?[0-9]{1,7}/gi,m;
+  while((m=re.exec(stripped))!==null){var col=m[1].toUpperCase();if(!php_map[col])unknown.add(col);}
+  var wu=document.getElementById('php_warnUnknown');
+  if(unknown.size>0){wu.textContent='В формуле используется колонка ('+Array.from(unknown).join(', ')+'), которая не описана в мапинге или описана нестандартно. Возможно формула не под этот маппинг. Если всё же нужна именно эта колонка, то обратитесь к @ArKaNeMaN';wu.style.display='block';}
+  else wu.style.display='none';
+  var openRanges=[];
+  var result=applyMap(f,php_map,function(k){return '{'+k+'}';},function(k){return '{'+k+'!}';},function(c1,r1,c2){openRanges.push(c1+r1+':'+c2);});
+  var wo=document.getElementById('php_warnOpenRange');
+  if(openRanges.length>0){wo.textContent='Вы уверены что тут диапазон не должен начинаться с 2 строки? ('+openRanges.join(', ')+')';wo.style.display='block';}
+  else wo.style.display='none';
+  document.getElementById('php_resOriginal').textContent=f;
+  document.getElementById('php_resCols').textContent=result;
+  document.getElementById('php_resNorm').textContent=normalizeFormula(f);
+  document.getElementById('php_resultBox').style.display='block';
+}
+
+// ── PAGE 3B ───────────────────────────────────────────────────────────
+var mg_wb1=null,mg_wb2=null,mg_headers1={},mg_headers2={};
+function mg_loadFile(n,input){
+  var f=input.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(e){
+    var wb=XLSX.read(e.target.result,{type:'binary',cellFormula:false,cellNF:false,cellStyles:false,cellDates:false});
+    if(n===1){
+      mg_wb1=wb; document.getElementById('mg_fname1').textContent=f.name; document.getElementById('mg_box1').classList.add('loaded');
+      var sel=document.getElementById('mg_sheetSel1'); sel.innerHTML='';
+      wb.SheetNames.forEach(function(name){var o=document.createElement('option');o.value=o.textContent=name;sel.appendChild(o);});
+      sel.disabled=false;
+    } else {
+      mg_wb2=wb; document.getElementById('mg_fname2').textContent=f.name; document.getElementById('mg_box2').classList.add('loaded');
+    }
+    document.getElementById('mg_compareBtn').disabled=!(mg_wb1&&mg_wb2);
+  };
+  r.readAsBinaryString(f);
+}
+function mg_compare(){
+  var sn=document.getElementById('mg_sheetSel1').value;
+  var r1=parseInt(document.getElementById('mg_row1').value,10);
+  var r2=parseInt(document.getElementById('mg_row2').value,10);
+  var sn2=mg_wb2.SheetNames.indexOf(sn)>=0?sn:mg_wb2.SheetNames[0];
+  mg_headers1=readHeaderMap(mg_wb1.Sheets[sn],r1);
+  mg_headers2=readHeaderMap(mg_wb2.Sheets[sn2],r2);
+  var n2c1={};
+  for(var c in mg_headers1) n2c1[mg_headers1[c].toLowerCase()]=c;
+  var tbody=document.getElementById('mg_diffTbody'); tbody.innerHTML='';
+  var frag=document.createDocumentFragment(),processed=new Set();
+  sortCols(Object.keys(mg_headers2)).forEach(function(col2){
+    var name2=mg_headers2[col2]; processed.add(name2.toLowerCase());
+    var col1=n2c1[name2.toLowerCase()]||null,name1=col1?mg_headers1[col1]:null;
+    var status,cls;
+    if(!col1){status='🟢 Новая';cls='new-col';}
+    else if(col1!==col2){status='↔️ Сдвинута';cls='changed-col';}
+    else{status='✅ Совпадает';cls='';}
+    var tr=document.createElement('tr'); tr.className=cls;
+    tr.innerHTML='<td>'+escHtml(col1||'—')+'</td><td>'+escHtml(name1||'—')+'</td><td>'+escHtml(col2)+'</td><td>'+escHtml(name2)+'</td><td>'+status+'</td>';
+    frag.appendChild(tr);
+  });
+  sortCols(Object.keys(mg_headers1)).forEach(function(col1){
+    var name1=mg_headers1[col1];
+    if(!processed.has(name1.toLowerCase())){
+      var tr=document.createElement('tr'); tr.className='removed-col';
+      tr.innerHTML='<td>'+escHtml(col1)+'</td><td>'+escHtml(name1)+'</td><td>—</td><td>—</td><td>🔴 Удалена</td>';
+      frag.appendChild(tr);
+    }
+  });
+  tbody.appendChild(frag);
+  document.getElementById('mg_diffSection').style.display='block';
+  document.getElementById('mg_outputSection').style.display='none';
+}
+function mg_generate(){
+  var text=document.getElementById('mg_mappingInput').value;
+  var m1={},re=/^\s*'([^']+)'\s*=>\s*'([A-Z]{1,3})'/gm,m;
+  while((m=re.exec(text))!==null) m1[m[2].toUpperCase()]=m[1];
+  var n2k={};
+  for(var col in m1){var name=mg_headers1[col];if(name)n2k[name.toLowerCase()]=m1[col];}
+  var lines=[];
+  sortCols(Object.keys(mg_headers2)).forEach(function(col2){
+    var name2=mg_headers2[col2],key=n2k[name2.toLowerCase()],isNew=!key;
+    if(isNew) key=name2;
+    lines.push({col:col2,key:key,isNew:isNew,name:name2});
+  });
+  var container=document.getElementById('mg_output'); container.innerHTML='';
+  lines.forEach(function(l){
+    var line="'"+l.key+"' => '"+l.col+"',";
+    if(l.isNew){var span=document.createElement('span');span.className='new-entry';span.textContent=line+'  // 🟢 новая колонка: '+l.name;container.appendChild(span);}
+    else container.appendChild(document.createTextNode(line));
+    container.appendChild(document.createTextNode('\n'));
+  });
+  document.getElementById('mg_outputSection').style.display='block';
+}
+function mg_copy(){
+  var text=document.getElementById('mg_output').innerText||document.getElementById('mg_output').textContent;
+  navigator.clipboard.writeText(text).then(function(){
+    var btn=document.querySelector('.copy-btn');btn.textContent='✅ Скопировано!';
+    setTimeout(function(){btn.textContent='📋 Скопировать (без HTML)';},2000);
+  });
+}
+
+// ── PAGE 4: Bug ───────────────────────────────────────────────────────
+var bug_imageBase64=null,bug_imageMime='image/png';
+
+// Принудительные правила: если паттерн — добавить этих людей в таком порядке
+var BUG_FORCE_MULTI=[
+  {
+    pattern:/экспорт|выгрузк|export/i,
+    assignees:[{name:'Руслан Филатов',role:'бэк'},{name:'Артём Дащенко',role:'бэк'}]
+  }
+];
+
+var BUG_URL_WARNINGS=[
+  {pattern:/erp\.outplan\.ru\/target-programs/i, msg:'Проверьте на наличие ошибок в АП самостоятельно'}
+];
+
+var BUG_SYSTEM=
+  "Ты помощник по распределению багов в команде разработки.\n\n"+
+  "Команда:\n"+
+  "- Борис Боболь (бэк) — Адресные программы (АП), массовые действия, сводная таблица в АП, фильтры в списке АП, фильтры в АП, интеграция с перспективой, подтверждение в АП\n"+
+  "- Артём Дащенко (бэк) — импорты в АП, экспорт из АП, выгрузка данных из АП, бэкофис (админка), экспорты в гугл таблицы, карта, реестр, фильтр в реестре, датагрид в реестре\n"+
+  "- Руслан Филатов (бэк) — экспорт из АП, выгрузка цен на монтаж из ЕРП, уведомления на почту, уведомления в колокольчик\n"+
+  "- Тайфур Юлчурин (тим лид) — уведомления на почту, уведомления в колокольчик, работа с ИИ, интеграция с букинбордом (BB)\n"+
+  "- Алексей Курилов (тестировщик) — тестирование багов с https://erp.outplan.ru/\n"+
+  "- Станислав Овсейчук (фронт) — отображение ошибок, блокирование действий пользователя, перестановка существующих фильтров, выбор приоритетности в модальных окнах из значений селектов\n"+
+  "- Айназ Файзрахманова (менеджер) — вопросы бизнес-логики, бизнес-процессы, пожелания по функциональности\n\n"+
+  "Если вопрос касается бизнес-логики — назначай Айназ Файзрахманову, в reason добавляй: 'На данный момент бизнес процесс не реализован в полной мере. Мы возьмем ваше пожелание в обсуждение'.\n"+
+  "Если баг касается экспорта/выгрузки из АП — назначай ОБОИХ: Руслан Филатов (первый, приоритет) и Артём Дащенко (второй).\n"+
+  "Если пользователь не видит АП, не может войти в АП или просит добавить менеджера в АП — не назначай ответственного (name: null) и в reply укажи: 'Если имеется ссылка на АП, то зайдите в АП, слева в Менеджерах нажмите \"+\" и выберите менеджера, который не может открыть АП. Если ссылки на АП нет, то запросите ее, далее смотрите текст выше'.\n"+
+  "Если не можешь определить — всегда назначай Алексею Курилову.\n\n"+
+  "Ответ строго JSON без markdown:\n"+
+  "{\"name\":\"Имя Фамилия или null\",\"role\":\"роль или null\",\"reason\":\"объяснение или null\",\"reply\":\"ответ задающему или null\",\"assignees\":[{\"name\":\"Имя Фамилия\",\"role\":\"роль\"}]}";
+
+function bug_applyForceRules(desc, obj) {
+  BUG_FORCE_MULTI.forEach(function(rule) {
+    if(rule.pattern.test(desc)) {
+      if(!obj.assignees) obj.assignees=[];
+      var existing=obj.assignees.map(function(a){return a.name;});
+      rule.assignees.forEach(function(fa) {
+        if(existing.indexOf(fa.name)===-1) obj.assignees.push({name:fa.name,role:fa.role});
+      });
+      // Сортируем согласно порядку в rule
+      obj.assignees.sort(function(a,b) {
+        var ai=rule.assignees.findIndex(function(f){return f.name===a.name;});
+        var bi=rule.assignees.findIndex(function(f){return f.name===b.name;});
+        if(ai===-1&&bi===-1) return 0;
+        if(ai===-1) return 1;
+        if(bi===-1) return -1;
+        return ai-bi;
+      });
+      obj.name=obj.assignees[0].name;
+      obj.role=obj.assignees[0].role;
+    }
+  });
+  return obj;
+}
+
+function bug_onDrop(e){
+  e.preventDefault(); document.getElementById('bug_dropzone').style.borderColor='#c5cae9';
+  var file=e.dataTransfer.files[0]; if(file&&file.type.startsWith('image/')) bug_readImage(file);
+}
+function bug_onFileSelect(input){var file=input.files[0];if(file)bug_readImage(file);}
+function bug_readImage(file){
+  bug_imageMime=file.type;
+  var r=new FileReader();
+  r.onload=function(e){
+    bug_imageBase64=e.target.result.split(',')[1];
+    document.getElementById('bug_imgEl').src=e.target.result;
+    document.getElementById('bug_imgPreview').style.display='block';
+    document.getElementById('bug_imgPlaceholder').style.display='none';
+  };
+  r.readAsDataURL(file);
+}
+function bug_clear(){
+  bug_imageBase64=null; bug_imageMime='image/png';
+  document.getElementById('bug_imgEl').src='';
+  document.getElementById('bug_imgPreview').style.display='none';
+  document.getElementById('bug_imgPlaceholder').style.display='block';
+  document.getElementById('bug_img').value='';
+  document.getElementById('bug_desc').value='';
+  document.getElementById('bug_result').style.display='none';
+  document.getElementById('bug_answer').innerHTML='';
+  document.getElementById('bug_warnUrl').style.display='none';
+}
+function bug_checkUrlWarnings(text){
+  var warn=document.getElementById('bug_warnUrl');
+  for(var i=0;i<BUG_URL_WARNINGS.length;i++){
+    if(BUG_URL_WARNINGS[i].pattern.test(text)){
+      warn.textContent='⚠️ '+BUG_URL_WARNINGS[i].msg;
+      warn.style.display='block';
+      return;
+    }
+  }
+  warn.style.display='none';
+}
+function bug_analyze(){
+  var desc=document.getElementById('bug_desc').value.trim();
+  if(!desc&&!bug_imageBase64){alert('Добавьте описание или скриншот');return;}
+  bug_checkUrlWarnings(desc);
+  document.getElementById('bug_result').style.display='block';
+  document.getElementById('bug_loading').style.display='block';
+  document.getElementById('bug_answer').innerHTML='';
+  document.getElementById('bug_btn').disabled=true;
+  var userContent=[];
+  if(bug_imageBase64) userContent.push({type:'image',source:{type:'base64',media_type:bug_imageMime,data:bug_imageBase64}});
+  userContent.push({type:'text',text:desc||'Смотри скриншот.'});
+  fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:BUG_SYSTEM,messages:[{role:'user',content:userContent}]})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    document.getElementById('bug_loading').style.display='none';
+    document.getElementById('bug_btn').disabled=false;
+    var text=(data.content||[]).map(function(b){return b.text||'';}).join('');
+    try{
+      var obj=JSON.parse(text.replace(/```json|```/g,'').trim());
+      if(!obj.assignees||!obj.assignees.length) obj.assignees=obj.name?[{name:obj.name,role:obj.role}]:[];
+      obj=bug_applyForceRules(desc,obj);
+
+      var replyHtml='';
+      if(obj.reply){
+        replyHtml='<div class="reply-box">'+
+          '<div class="reply-box-title">💬 Возможный ответ для задающего</div>'+
+          '<div class="reply-box-text">'+escHtml(obj.reply)+'</div>'+
+        '</div>';
+      }
+
+      var personHtml='';
+      if(obj.assignees&&obj.assignees.length){
+        var cards=obj.assignees.map(function(a,i){
+          var badge=i===0?'<span class="priority-badge">приоритет</span>':'';
+          var icon=i===0?'<div style="font-size:32px;">👤</div>':'<div style="font-size:22px;opacity:.5;">👤</div>';
+          var nameStyle=i>0?'font-size:16px;':'';
+          return '<div class="person-row">'+icon+
+            '<div><div class="bug-result-name" style="'+nameStyle+'">'+escHtml(a.name)+badge+'</div>'+
+            '<div class="bug-result-role">'+escHtml(a.role||'')+'</div></div></div>';
+        }).join('');
+        personHtml='<div class="person-card">'+cards+'</div>'+
+          (obj.reason?'<div class="bug-result-reason">'+escHtml(obj.reason)+'</div>':'');
+      }
+
+      document.getElementById('bug_answer').innerHTML=replyHtml+personHtml;
+    }catch(e){
+      document.getElementById('bug_answer').innerHTML='<div style="font-size:14px;color:#444;">'+escHtml(text)+'</div>';
+    }
+  })
+  .catch(function(err){
+    document.getElementById('bug_loading').style.display='none';
+    document.getElementById('bug_btn').disabled=false;
+    document.getElementById('bug_answer').innerHTML='<div style="color:#c62828;">Ошибка: '+escHtml(String(err))+'</div>';
+  });
+}
+
+document.addEventListener('paste',function(e){
+  if(document.getElementById('page-bug').classList.contains('active')){
+    var items=(e.clipboardData||e.originalEvent.clipboardData).items;
+    for(var i=0;i<items.length;i++){
+      if(items[i].type.startsWith('image/')){bug_readImage(items[i].getAsFile());break;}
+    }
+  }
+});
+</script>
+</body>
+</html>
