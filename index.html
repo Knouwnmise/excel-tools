@@ -465,7 +465,7 @@ function bug_analyzeByGemini(desc,apiKey){
   document.getElementById('bug_btn').disabled=true;
   var parts=[{text:GEMINI_SYSTEM+'\n\nЗаявка: '+desc}];
   if(bug_imageBase64){parts=[{inlineData:{mimeType:bug_imageMime,data:bug_imageBase64}},{text:GEMINI_SYSTEM+'\n\nЗаявка: '+desc}];}
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+apiKey,{
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:parts}],generationConfig:{temperature:0.1}})
