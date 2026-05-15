@@ -54,7 +54,7 @@
   label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
   input[type=number] { width: 90px; padding: 8px 10px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 14px; }
   .sheet-select { padding: 8px 10px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 14px; background: #fff; }
-  .formula-input { width: 100%; padding: 10px 12px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 13px; font-family: monospace; margin-bottom: 16px; }
+  .formula-input { width: 100%; padding: 10px 12px; border: 1px solid #c5cae9; border-radius: 8px; font-size: 13px; font-family: monospace; margin-bottom: 16px; resize: vertical; min-height: 70px; display: block; }
   .formula-input:focus { outline: none; border-color: #5c6bc0; }
   .result-box { background: #fff; border-radius: 10px; padding: 16px 20px; margin-top: 20px; }
   .result-box h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #555; }
@@ -153,24 +153,45 @@
 
 <!-- PAGE 2 -->
 <div class="page" id="page-converter">
-  <div class="upload-box" id="cv_uploadBox" onclick="document.getElementById('cv_f1').click()">
-    <div class="icon">📁</div><input type="file" id="cv_f1" accept=".xlsx,.xls" onchange="cv_loadFile(this)">
-    <div class="label">Загрузить Excel-файл</div><div class="fname" id="cv_fname">не выбран</div>
+  <div class="mode-tabs" id="cv_modeTabs" style="margin-bottom:20px;">
+    <button class="mode-tab active" onclick="cv_switchMode('file',this)">Из файла Excel</button>
+    <button class="mode-tab" onclick="cv_switchMode('text',this)">Маппинг строкой</button>
   </div>
-  <div class="irow">
-    <div><label for="cv_sheetSel">Лист</label><select class="sheet-select" id="cv_sheetSel" disabled onchange="cv_onSheetChange()"></select></div>
-    <div><label for="cv_headerRow">Строка с заголовками</label><input type="number" id="cv_headerRow" value="14" min="1"></div>
-    <button class="primary" id="cv_loadBtn" disabled onclick="cv_loadHeaders()">Загрузить заголовки</button>
+  <div id="cv_fileSection">
+    <div class="upload-box" id="cv_uploadBox" onclick="document.getElementById('cv_f1').click()">
+      <div class="icon">📁</div><input type="file" id="cv_f1" accept=".xlsx,.xls" onchange="cv_loadFile(this)">
+      <div class="label">Загрузить Excel-файл</div><div class="fname" id="cv_fname">не выбран</div>
+    </div>
+    <div class="irow">
+      <div><label for="cv_sheetSel">Лист</label><select class="sheet-select" id="cv_sheetSel" disabled onchange="cv_onSheetChange()"></select></div>
+      <div><label for="cv_headerRow">Строка с заголовками</label><input type="number" id="cv_headerRow" value="14" min="1"></div>
+      <button class="primary" id="cv_loadBtn" disabled onclick="cv_loadHeaders()">Загрузить заголовки</button>
+    </div>
   </div>
-  <div id="cv_headerPreview" style="display:none;margin-bottom:16px;">
+  <div id="cv_textSection" style="display:none;">
+    <label for="cv_mappingText">Маппинг (PHP-формат или A=Название, по одному на строку)</label>
+    <textarea class="php-input" id="cv_mappingText" placeholder="'year_month' => 'A',&#10;'region' => 'B',&#10;&#10;или&#10;&#10;A=Год и месяц&#10;B=Регион" style="height:160px;margin-top:6px;"></textarea>
+    <div class="irow" style="margin-bottom:0;">
+      <button class="primary" onclick="cv_parseTextMapping()">Распознать маппинг</button>
+      <span id="cv_textParseInfo" style="font-size:13px;color:#777;"></span>
+    </div>
+  </div>
+  <div id="cv_headerPreview" style="display:none;margin-top:16px;margin-bottom:16px;">
     <div class="result-label">Найдено столбцов: <span id="cv_colCount">0</span></div>
     <div class="hint" id="cv_colPreview"></div>
   </div>
   <div id="cv_formulaSection" style="display:none;">
     <label for="cv_formulaInput">Введите формулу</label>
-    <input type="text" id="cv_formulaInput" class="formula-input" placeholder="=IF(AC14=&quot;Вкл&quot;,AA14*1.22)" oninput="cv_onFormulaInput()">
+    <textarea id="cv_formulaInput" class="formula-input" placeholder="=IF(AC14=&quot;Вкл&quot;,AA14*1.22)" oninput="cv_onFormulaInput()"></textarea>
     <div class="error-msg" id="cv_formulaError">Введите формулу начиная с =</div>
-    <button class="primary" id="cv_convertBtn" disabled onclick="cv_convert()">Преобразовать</button>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="primary" id="cv_convertBtn" disabled onclick="cv_convert()">Преобразовать</button>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+        <span style="font-weight:600;color:#555;">Плейсхолдеры:</span>
+        <label style="font-weight:400;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="cv_wrapper" value="square" checked> <code>[название]</code></label>
+        <label style="font-weight:400;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="cv_wrapper" value="curly"> <code>{название}</code></label>
+      </div>
+    </div>
   </div>
   <div class="result-box" id="cv_resultBox" style="display:none;">
     <h2>Результат</h2>
@@ -191,7 +212,7 @@
   </div>
   <div id="php_formulaSection" style="display:none;">
     <label for="php_formulaInput">Введите формулу</label>
-    <input type="text" id="php_formulaInput" class="formula-input" placeholder="=IF(AC14=&quot;Вкл&quot;,AA14*1.22)" oninput="php_onFormulaInput()">
+    <textarea id="php_formulaInput" class="formula-input" placeholder="=IF(AC14=&quot;Вкл&quot;,AA14*1.22)" oninput="php_onFormulaInput()"></textarea>
     <div class="error-msg" id="php_formulaError">Введите формулу начиная с =</div>
     <button class="primary" id="php_convertBtn" disabled onclick="php_convert()">Преобразовать</button>
   </div>
@@ -330,11 +351,39 @@ function cmp_renderPage(){var rows=cmp_computeSheet(cmp_currentSheet);var start=
 
 // ── PAGE 2 ────────────────────────────────────────────────────────────
 var cv_wb=null,cv_headerMap={};
+function cv_switchMode(mode,el){
+  document.querySelectorAll('#cv_modeTabs .mode-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('cv_fileSection').style.display=mode==='file'?'block':'none';
+  document.getElementById('cv_textSection').style.display=mode==='text'?'block':'none';
+  cv_headerMap={};
+  ['cv_headerPreview','cv_formulaSection','cv_resultBox'].forEach(function(id){document.getElementById(id).style.display='none';});
+}
+function cv_parseTextMapping(){
+  var text=document.getElementById('cv_mappingText').value;
+  cv_headerMap={};
+  var rePHP=/^\s*'([^']+)'\s*=>\s*'([A-Z]{1,3})'/gm,m,phpCount=0;
+  while((m=rePHP.exec(text))!==null){cv_headerMap[m[2].toUpperCase()]=m[1];phpCount++;}
+  if(phpCount===0){
+    var reSimple=/^\s*([A-Z]{1,3})\s*[=:]\s*(.+)/gm;
+    while((m=reSimple.exec(text))!==null)cv_headerMap[m[1].toUpperCase()]=m[2].trim();
+  }
+  var count=Object.keys(cv_headerMap).length;
+  document.getElementById('cv_textParseInfo').textContent=count?'✅ Найдено '+count+' колонок':'⚠️ Колонки не найдены';
+  if(count){
+    document.getElementById('cv_colCount').textContent=count;
+    var cols=Object.keys(cv_headerMap);
+    document.getElementById('cv_colPreview').textContent=cols.slice(0,8).map(function(c){return c+'→'+cv_headerMap[c];}).join(', ')+(cols.length>8?' ...':'');
+    document.getElementById('cv_headerPreview').style.display='block';
+    document.getElementById('cv_formulaSection').style.display='block';
+    document.getElementById('cv_resultBox').style.display='none';
+  }
+}
 function cv_loadFile(input){var f=input.files[0];if(!f)return;var r=new FileReader();r.onload=function(e){cv_wb=XLSX.read(e.target.result,{type:'binary',cellFormula:true,cellNF:false,cellStyles:false,cellDates:false});document.getElementById('cv_fname').textContent=f.name;document.getElementById('cv_uploadBox').classList.add('loaded');var sel=document.getElementById('cv_sheetSel');sel.innerHTML='';cv_wb.SheetNames.forEach(function(n){var o=document.createElement('option');o.value=o.textContent=n;sel.appendChild(o);});sel.disabled=false;document.getElementById('cv_loadBtn').disabled=false;};r.readAsBinaryString(f);}
 function cv_onSheetChange(){cv_headerMap={};['cv_headerPreview','cv_formulaSection','cv_resultBox'].forEach(function(id){document.getElementById(id).style.display='none';});}
 function cv_loadHeaders(){if(!cv_wb)return;var sn=document.getElementById('cv_sheetSel').value,row=parseInt(document.getElementById('cv_headerRow').value,10);cv_headerMap=readHeaderMap(cv_wb.Sheets[sn],row);var cols=Object.keys(cv_headerMap);document.getElementById('cv_colCount').textContent=cols.length;document.getElementById('cv_colPreview').textContent=cols.slice(0,8).map(function(c){return c+'→'+cv_headerMap[c];}).join(', ')+(cols.length>8?' ...':'');document.getElementById('cv_headerPreview').style.display='block';document.getElementById('cv_formulaSection').style.display='block';document.getElementById('cv_resultBox').style.display='none';}
 function cv_onFormulaInput(){var val=document.getElementById('cv_formulaInput').value.trim();var err=document.getElementById('cv_formulaError'),btn=document.getElementById('cv_convertBtn');if(val&&!val.startsWith('=')){err.style.display='block';btn.disabled=true;}else{err.style.display='none';btn.disabled=!val;}}
-function cv_convert(){var f=document.getElementById('cv_formulaInput').value.trim();if(!f)return;document.getElementById('cv_resOriginal').textContent=f;document.getElementById('cv_resCols').textContent=applyMap(f,cv_headerMap,squareBracket,squareBracket,null);document.getElementById('cv_resNorm').textContent=normalizeFormula(f);document.getElementById('cv_resultBox').style.display='block';}
+function cv_convert(){var f=document.getElementById('cv_formulaInput').value.trim();if(!f)return;var useCurly=document.querySelector('input[name="cv_wrapper"]:checked').value==='curly';var wP=useCurly?function(k){return'{'+k+'}';}:squareBracket;var wB=useCurly?function(k){return'{'+k+'!}';}:squareBracket;document.getElementById('cv_resOriginal').textContent=f;document.getElementById('cv_resCols').textContent=applyMap(f,cv_headerMap,wP,wB,null);document.getElementById('cv_resNorm').textContent=normalizeFormula(f);document.getElementById('cv_resultBox').style.display='block';}
 
 // ── PAGE 3A ───────────────────────────────────────────────────────────
 var php_map={};
